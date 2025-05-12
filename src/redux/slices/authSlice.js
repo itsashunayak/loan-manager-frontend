@@ -11,7 +11,7 @@ export const registerUser = createAsyncThunk('auth/register', async (customerDat
     }
 });
 
-// Login user
+// Login 
 export const loginUser = createAsyncThunk('auth/login', async ({ email, password }, { rejectWithValue }) => {
     try {
         const response = await axios.post('http://localhost:8080/customer/login', null, { params: { email, password } });
