@@ -4,7 +4,7 @@ import axios from 'axios';
 // Register a new user
 export const registerUser = createAsyncThunk('auth/register', async (customerData, { rejectWithValue }) => {
     try {
-        const response = await axios.post('http://localhost:8083/customer/register', customerData);
+        const response = await axios.post('http://localhost:8080/customer/register', customerData);
         return response.data; // Assuming the response contains the registered user
     } catch (error) {
         return rejectWithValue(error.response?.data || 'Registration failed.');
@@ -14,7 +14,7 @@ export const registerUser = createAsyncThunk('auth/register', async (customerDat
 // Login user
 export const loginUser = createAsyncThunk('auth/login', async ({ email, password }, { rejectWithValue }) => {
     try {
-        const response = await axios.post('http://localhost:8083/customer/login', null, { params: { email, password } });
+        const response = await axios.post('http://localhost:8080/customer/login', null, { params: { email, password } });
         return response.data;
     } catch (error) {
         return rejectWithValue('Invalid credentials, please try again.');
