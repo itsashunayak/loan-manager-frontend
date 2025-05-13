@@ -18,6 +18,7 @@ export const loginUser = createAsyncThunk('auth/login', async ({ email, password
             email, 
             password
         });
+        console.log(response.data);
         const { token, userId,firstName } = response.data; // Assuming the response contains `token` and `userId`
         
         // Save the token in localStorage for persistence across sessions
