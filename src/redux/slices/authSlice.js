@@ -5,7 +5,7 @@ import axios from 'axios';
 export const registerUser = createAsyncThunk('auth/register', async (customerData, { rejectWithValue }) => {
     try {
         const response = await axios.post('http://localhost:8080/auth/register', customerData);
-        return response.data; // Assuming the response contains the registered user
+        return response.data;
     } catch (error) {
         return rejectWithValue(error.response?.data || 'Registration failed.');
     }
@@ -14,17 +14,19 @@ export const registerUser = createAsyncThunk('auth/register', async (customerDat
 // Login 
 export const loginUser = createAsyncThunk('auth/login', async ({ email, password }, { rejectWithValue }) => {
     try {
-          const response = await axios.post('http://localhost:8080/auth/login', {
-            email, 
+        const response = await axios.post('http://localhost:8080/auth/login', {
+            email,
             password
         });
-        console.log(response.data);
-        const { token, userId,firstName } = response.data; // Assuming the response contains `token` and `userId`
-        
-        // Save the token in localStorage for persistence across sessions
+
+        const { token, userId, firstName, role } = response.data;
+
+        // Persist in localStorage
         localStorage.setItem('token', token);
         localStorage.setItem('firstName', firstName);
-        return { userId, token,firstName }; // Return both userId and token to store in Redux
+        localStorage.setItem('role', role);
+
+        return { userId, token, firstName, role };
     } catch (error) {
         return rejectWithValue('Invalid credentials, please try again.');
     }
@@ -35,36 +37,48 @@ const authSlice = createSlice({
     initialState: {
         userId: null,
         token: null,
+        role: null,
+        firstName: null,
         loading: false,
-        firstName:null,
         error: null,
     },
     reducers: {
-        // Optional: A reducer to log out the user (clear token and userId)
         logout: (state) => {
             state.userId = null;
             state.token = null;
-            localStorage.removeItem('token'); // Remove token from localStorage
+            state.role = null;
+            state.firstName = null;
+
+            // Clear localStorage
+            localStorage.removeItem('token');
+            localStorage.removeItem('firstName');
+            localStorage.removeItem('role');
         },
     },
     extraReducers: (builder) => {
         builder
-            .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
+            .addCase(registerUser.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
             .addCase(registerUser.fulfilled, (state, action) => {
                 state.loading = false;
                 state.userId = action.payload.id;
-               
             })
             .addCase(registerUser.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })
-            .addCase(loginUser.pending, (state) => { state.loading = true; state.error = null; })
+            .addCase(loginUser.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
             .addCase(loginUser.fulfilled, (state, action) => {
                 state.loading = false;
                 state.userId = action.payload.userId;
-                 state.firstName=action.payload.firstName;
-                state.token = action.payload.token; // Store the token in the state
+                state.firstName = action.payload.firstName;
+                state.token = action.payload.token;
+                state.role = action.payload.role;
             })
             .addCase(loginUser.rejected, (state, action) => {
                 state.loading = false;

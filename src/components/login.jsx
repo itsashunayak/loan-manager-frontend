@@ -8,18 +8,25 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const dispatch = useDispatch();
-    const { userId, loading,firstName, error } = useSelector(state => state.auth);
+    const { userId, loading, firstName, role, error } = useSelector(state => state.auth);
     const navigate = useNavigate();
 
     const handleLogin = (e) => {
         e.preventDefault();
         dispatch(loginUser({ email, password }));
     };
-       useEffect(() => {
-        if (!loading && userId) {
-            navigate('/dashboard');
+
+    useEffect(() => {
+        if (!loading && userId && role) {
+            if (role === 'ROLE_ADMIN') {
+                navigate('/admin-dashboard');
+            } else if (role === 'ROLE_CUSTOMER') {
+                navigate('/loan-dashboard');
+            } else {
+                navigate('/dashboard'); // fallback
+            }
         }
-    }, [loading, userId, navigate]);
+    }, [loading, userId, role, navigate]);
 
     return (
         <Container maxWidth="xs">
@@ -70,11 +77,13 @@ const Login = () => {
                         {loading ? <CircularProgress size={24} color="inherit" /> : 'Login'}
                     </Button>
                 </form>
+
                 {userId && (
                     <Typography variant="body1" color="success.main" sx={{ mb: 2 }}>
-                        Logged in successfully! Customer ID: {firstName}
+                        Welcome, {firstName}! Role: {role}
                     </Typography>
                 )}
+
                 {error && (
                     <Typography variant="body1" color="error.main" sx={{ mb: 2 }}>
                         {error}

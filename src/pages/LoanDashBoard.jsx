@@ -1,34 +1,15 @@
-import React, { useState, useEffect } from "react";
-import PieChart from "./PieChart";
-import LoanRepaymentForm from "./LoanRepaymentForm";
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchUserLoans } from "../redux/slices/loanSlice";
 import { Card, CardContent, Typography, Grid, Box, Divider } from "@mui/material";
-import axios from "axios";
-import { useSelector } from "react-redux";
 
 const LoanDashboard = () => {
-    const [loanData, setLoanData] = useState([]); // State to store loan data
-    const { userId } = useSelector((state) => state.auth); // Get userId from Redux store
-    const [loading, setLoading] = useState(true); // Loading state
-    const [error, setError] = useState(null); // Error state
+    const dispatch = useDispatch();
+    const { loans, loading, error } = useSelector((state) => state.loan);
 
     useEffect(() => {
-        // Fetch loan data from the backend
-        const fetchLoanData = async () => {
-            try {
-                const response = await axios.get(`http://localhost:8080/loan/user/${userId}`);
-                setLoanData(response.data); // Assuming the response contains an array of loans
-                setLoading(false);
-            } catch (error) {
-                console.error("Error fetching loan data:", error);
-                setError("Failed to fetch loan data.");
-                setLoading(false);
-            }
-        };
-
-        if (userId) {
-            fetchLoanData();
-        }
-    }, [userId]);
+        dispatch(fetchUserLoans());
+    }, [dispatch]);
 
     if (loading) {
         return (
@@ -71,10 +52,11 @@ const LoanDashboard = () => {
             sx={{
                 height: "100vh",
                 width: "100%",
+                overflowY: "auto",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center",
+                justifyContent: "flex-start",
                 background: "linear-gradient(135deg, #1e3c72, #2a5298)",
                 padding: { xs: 2, sm: 4 },
             }}
@@ -92,7 +74,8 @@ const LoanDashboard = () => {
             >
                 Loan Dashboard
             </Typography>
-            {loanData.map((loan) => (
+
+            {loans.map((loan) => (
                 <Card
                     key={loan.loanId}
                     sx={{
@@ -108,45 +91,22 @@ const LoanDashboard = () => {
                     <CardContent>
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={6}>
-                                <Typography
-                                    variant="h6"
-                                    sx={{
-                                        color: "#ffffff",
-                                        fontFamily: "'Poppins', sans-serif",
-                                        fontWeight: "bold",
-                                    }}
-                                >
+                                <Typography variant="h6" sx={{ color: "#ffffff", fontWeight: "bold" }}>
                                     Loan Amount:
                                 </Typography>
-                                <Typography
-                                    sx={{
-                                        color: "#ffffff",
-                                        fontFamily: "'Poppins', sans-serif",
-                                    }}
-                                >
+                                <Typography sx={{ color: "#ffffff" }}>
                                     ₹{loan.loanAmount}
                                 </Typography>
                             </Grid>
                             <Grid item xs={12} sm={6}>
-                                <Typography
-                                    variant="h6"
-                                    sx={{
-                                        color: "#ffffff",
-                                        fontFamily: "'Poppins', sans-serif",
-                                        fontWeight: "bold",
-                                    }}
-                                >
+                                <Typography variant="h6" sx={{ color: "#ffffff", fontWeight: "bold" }}>
                                     Loan Type:
                                 </Typography>
-                                <Typography
-                                    sx={{
-                                        color: "#ffffff",
-                                        fontFamily: "'Poppins', sans-serif",
-                                    }}
-                                >
+                                <Typography sx={{ color: "#ffffff" }}>
                                     {loan.loanType}
                                 </Typography>
                             </Grid>
+
                             <Divider
                                 sx={{
                                     width: "100%",
@@ -154,43 +114,20 @@ const LoanDashboard = () => {
                                     marginY: 2,
                                 }}
                             />
+
                             <Grid item xs={12} sm={6}>
-                                <Typography
-                                    variant="h6"
-                                    sx={{
-                                        color: "#ffffff",
-                                        fontFamily: "'Poppins', sans-serif",
-                                        fontWeight: "bold",
-                                    }}
-                                >
+                                <Typography variant="h6" sx={{ color: "#ffffff", fontWeight: "bold" }}>
                                     Duration (Months):
                                 </Typography>
-                                <Typography
-                                    sx={{
-                                        color: "#ffffff",
-                                        fontFamily: "'Poppins', sans-serif",
-                                    }}
-                                >
+                                <Typography sx={{ color: "#ffffff" }}>
                                     {loan.duration}
                                 </Typography>
                             </Grid>
                             <Grid item xs={12} sm={6}>
-                                <Typography
-                                    variant="h6"
-                                    sx={{
-                                        color: "#ffffff",
-                                        fontFamily: "'Poppins', sans-serif",
-                                        fontWeight: "bold",
-                                    }}
-                                >
+                                <Typography variant="h6" sx={{ color: "#ffffff", fontWeight: "bold" }}>
                                     Monthly EMI:
                                 </Typography>
-                                <Typography
-                                    sx={{
-                                        color: "#ffffff",
-                                        fontFamily: "'Poppins', sans-serif",
-                                    }}
-                                >
+                                <Typography sx={{ color: "#ffffff" }}>
                                     ₹{loan.monthlyEmi}
                                 </Typography>
                             </Grid>
