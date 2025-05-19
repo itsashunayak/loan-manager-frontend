@@ -32,6 +32,25 @@ export const loginUser = createAsyncThunk('auth/login', async ({ email, password
     }
 });
 
+// Fetch a particular user's details
+export const fetchUserDetails = createAsyncThunk(
+    'auth/fetchUserDetails',
+    async (userId, { rejectWithValue }) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`http://localhost:8080/auth/users/${userId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data || 'Failed to fetch user details.');
+        }
+    }
+);
+
+
 const authSlice = createSlice({
     name: 'auth',
     initialState: {
@@ -39,6 +58,7 @@ const authSlice = createSlice({
         token: null,
         role: null,
         firstName: null,
+        userDetails: null,
         loading: false,
         error: null,
     },
@@ -81,6 +101,18 @@ const authSlice = createSlice({
                 state.role = action.payload.role;
             })
             .addCase(loginUser.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            .addCase(fetchUserDetails.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(fetchUserDetails.fulfilled, (state, action) => {
+                state.loading = false;
+                state.userDetails = action.payload;
+            })
+            .addCase(fetchUserDetails.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             });

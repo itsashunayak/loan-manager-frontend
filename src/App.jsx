@@ -6,6 +6,7 @@ import LoanDashboard from './pages/LoanDashBoard';
 import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './utils/ProtectedRoutes';
 import Navbar from './components/Navbar';
+import Profile from './components/Profile';
 
 const App = () => {
     const { token, role } = useSelector((state) => state.auth);
@@ -19,6 +20,7 @@ const App = () => {
             <Routes>
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<Login />} />
+                <Route path='/profile' element={<Profile/>}/>
 
                 {/* Customer-only route */}
                 <Route
