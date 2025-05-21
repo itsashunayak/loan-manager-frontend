@@ -1,252 +1,363 @@
 import React, { useEffect, useState } from "react";
+import {
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Grid,
+  MenuItem,
+  TextField,
+  Typography,
+  CircularProgress,
+  Alert,
+  Box,
+} from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchLoansByUserId, fetchUserLoans } from "../redux/slices/loanSlice";
-import { Card, CardContent, Typography, Grid, Box, Divider, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, InputLabel, FormControl } from "@mui/material";
-import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import {
+  applyForLoan,
+  fetchLoansByUserId,
+  fetchUserLoans,
+} from "../redux/slices/loanSlice";
+import { useParams } from "react-router-dom";
 
-const LOAN_TYPES = [
-    { value: "Auto loan", label: "Auto loan" },
-    { value: "Personal loan", label: "Personal loan" },
-    { value: "Home loan", label: "Home loan" },
-    { value: "Business loan", label: "Business loan" },
+const interestRates = {
+  "Home loan": 0.08,
+  "Auto loan": 0.1,
+  "Personal loan": 0.12,
+};
+
+const cardColors = [
+  "linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)",
+  "linear-gradient(135deg, #ff9966 0%, #ff5e62 100%)",
+  "linear-gradient(135deg, #56ab2f 0%, #a8e063 100%)",
+  "linear-gradient(135deg, #ff6a00 0%, #ee0979 100%)",
+  "linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)",
 ];
-
-const DURATIONS = [
-    { value: 3, label: "3 months" },
-    { value: 6, label: "6 months" },
-    { value: 9, label: "9 months" },
-    { value: 12, label: "12 months" },
-    { value: 18, label: "18 months" },
-    { value: 24, label: "24 months" },
-];
-
-const INTEREST_RATE = 0.10; // 10% annual interest for EMI calculation
 
 const LoanDashboard = () => {
-    const dispatch = useDispatch();
-    const navigate = useNavigate();
-    const { loans, loading, error } = useSelector((state) => state.loan);
-    const { userId } = useParams();
+  const dispatch = useDispatch();
+  const { loans, loading, error } = useSelector((state) => state.loan);
 
-    // Add Loan Dialog State
-    const [open, setOpen] = useState(false);
-    const [loanType, setLoanType] = useState("");
-    const [duration, setDuration] = useState("");
-    const [amount, setAmount] = useState("");
-    const [emi, setEmi] = useState("");
-    const [submitting, setSubmitting] = useState(false);
-    const [formError, setFormError] = useState("");
+  const [openDialog, setOpenDialog] = useState(false);
+  const [loanType, setLoanType] = useState("");
+  const [duration, setDuration] = useState("");
+  const [amount, setAmount] = useState("");
+  const [monthlyEmi, setMonthlyEmi] = useState("");
+  const [interest, setInterest] = useState("");
+  const [rate, setRate] = useState("");
 
-    useEffect(() => {
-        if (userId) {
-            dispatch(fetchLoansByUserId(userId));
-        } else {
-            dispatch(fetchUserLoans());
-        }
-    }, [dispatch, userId]);
+  const durations = [12, 24, 36, 48, 60]; // in months
 
-    // EMI Calculation (simple reducing balance formula)
-    useEffect(() => {
-        if (amount && duration) {
-            const principal = parseFloat(amount);
-            const months = parseInt(duration, 10);
-            const monthlyRate = INTEREST_RATE / 12;
-            if (principal > 0 && months > 0) {
-                const emiCalc = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) /
-                    (Math.pow(1 + monthlyRate, months) - 1);
-                setEmi(emiCalc ? emiCalc.toFixed(2) : "");
-            } else {
-                setEmi("");
-            }
-        } else {
-            setEmi("");
-        }
-    }, [amount, duration]);
+  const { userId } = useParams();
 
-    if (loading) {
-        return (
-            <Box sx={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#1e3c72" }}>
-                <Typography variant="h6" sx={{ color: "#ffffff" }}>Loading loan details...</Typography>
-            </Box>
-        );
+  useEffect(() => {
+    if (userId) {
+      dispatch(fetchLoansByUserId(userId));
+    } else {
+      dispatch(fetchUserLoans());
+    }
+  }, [dispatch, userId]);
+
+  useEffect(() => {
+    if (loanType && amount && duration) {
+      calculateEMI(amount, duration, loanType);
+    }
+  }, [loanType, amount, duration]);
+
+  const calculateEMI = (amount, duration, loanType) => {
+    const principal = parseFloat(amount);
+    const months = parseInt(duration);
+    const rate = interestRates[loanType];
+
+    if (!principal || !months || !rate) {
+      setMonthlyEmi("");
+      setInterest("");
+      setRate("");
+      return;
     }
 
-    if (error) {
-        return (
-            <Box sx={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#1e3c72" }}>
-                <Typography variant="h6" sx={{ color: "#ffffff" }}>{error}</Typography>
-            </Box>
-        );
+    const monthlyRate = rate / 12;
+    const emi =
+      (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) /
+      (Math.pow(1 + monthlyRate, months) - 1);
+
+    const totalPayment = emi * months;
+    const totalInterest = totalPayment - principal;
+
+    setMonthlyEmi(emi.toFixed(2));
+    setInterest(totalInterest.toFixed(2));
+    setRate((rate * 100).toFixed(2)); // show % value
+  };
+
+  const handleApplyLoan = async () => {
+    try {
+      await dispatch(
+        applyForLoan({
+          loanType,
+          duration,
+          loanAmount: amount,
+          monthlyEmi,
+          interest,
+        })
+      ).unwrap();
+
+      dispatch(fetchUserLoans());
+      setOpenDialog(false);
+      setLoanType("");
+      setDuration("");
+      setAmount("");
+      setMonthlyEmi("");
+      setInterest("");
+      setRate("");
+    } catch (err) {
+      console.error("Loan application error:", err);
     }
+  };
 
-    // Only show Add Loan button if viewing own dashboard (not as admin)
-    const showAddLoanButton = !userId;
+  return (
+    <Box
+      sx={{
+        width: "100vw",
+        minHeight: "100vh",
+        p: 4,
+        boxSizing: "border-box",
+        bgcolor: "#f0f4f8",
+        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+      }}
+    >
+      <Typography
+        variant="h3"
+        gutterBottom
+        sx={{ fontWeight: "bold", color: "#3f51b5", mb: 3, textAlign: "center" }}
+      >
+        Loan Dashboard
+      </Typography>
 
-    // Handle Add Loan Dialog
-    const handleOpen = () => {
-        setLoanType("");
-        setDuration("");
-        setAmount("");
-        setEmi("");
-        setFormError("");
-        setOpen(true);
-    };
-    const handleClose = () => setOpen(false);
-
-    // Handle form submit
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setFormError("");
-        if (!loanType || !duration || !amount || !emi) {
-            setFormError("All fields are required.");
-            return;
-        }
-        setSubmitting(true);
-        try {
-            // You may need to adjust the API endpoint and payload as per your backend
-            const token = localStorage.getItem("token");
-            await axios.post(
-                `http://localhost:8080/loan/apply/${userId}`,
-                {
-                    loanType,
-                    duration: parseInt(duration, 10),
-                    loanAmount: parseFloat(amount),
-                    monthlyEmi: parseFloat(emi),
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
-            );
-            setOpen(false);
-            setSubmitting(false);
-            // Refresh the loans list
-            dispatch(fetchUserLoans());
-        } catch (err) {
-            setFormError(err.response?.data?.message || "Failed to apply for loan.");
-            setSubmitting(false);
-        }
-    };
-
-    return (
-        <Box sx={{ height: "full", width: "full", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", background: "#1e3c72", padding: { xs: 2, sm: 4 } }}>
-            <Typography variant="h3" gutterBottom sx={{ textAlign: "center", color: "#ffffff", fontWeight: "bold", marginBottom: 4, fontFamily: "'Poppins', sans-serif" }}>
-                Loan Dashboard
-            </Typography>
-
-            {showAddLoanButton && (
-                <Button
-                    variant="contained"
-                    color="primary"
-                    sx={{ mb: 3, fontWeight: "bold" }}
-                    onClick={handleOpen}
-                >
-                    Apply for a new Loan
-                </Button>
-            )}
-
-            {/* Add Loan Dialog */}
-            <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
-                <DialogTitle>Apply for a Loan</DialogTitle>
-                <DialogContent>
-                    <form onSubmit={handleSubmit}>
-                        <FormControl fullWidth margin="normal">
-                            <InputLabel id="loan-type-label">Type of Loan</InputLabel>
-                            <Select
-                                labelId="loan-type-label"
-                                value={loanType}
-                                label="Type of Loan"
-                                onChange={(e) => setLoanType(e.target.value)}
-                                required
-                            >
-                                {LOAN_TYPES.map((type) => (
-                                    <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                        <FormControl fullWidth margin="normal">
-                            <InputLabel id="duration-label">Duration</InputLabel>
-                            <Select
-                                labelId="duration-label"
-                                value={duration}
-                                label="Duration"
-                                onChange={(e) => setDuration(e.target.value)}
-                                required
-                            >
-                                {DURATIONS.map((d) => (
-                                    <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                        <TextField
-                            margin="normal"
-                            label="Amount of Loan"
-                            type="number"
-                            fullWidth
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value.replace(/^0+/, ""))}
-                            inputProps={{ min: 1, step: "any" }}
-                            required
-                        />
-                        <TextField
-                            margin="normal"
-                            label="Monthly EMI"
-                            fullWidth
-                            value={emi}
-                            InputProps={{ readOnly: true }}
-                        />
-                        {formError && (
-                            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
-                                {formError}
-                            </Typography>
-                        )}
-                        <DialogActions>
-                            <Button onClick={handleClose} color="secondary" variant="outlined">
-                                Close
-                            </Button>
-                            <Button type="submit" color="primary" variant="contained" disabled={submitting}>
-                                {submitting ? "Applying..." : "Apply"}
-                            </Button>
-                        </DialogActions>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            {loans.length === 0 ? (
-                <Typography sx={{ color: "#ffffff" }}>No loans found.</Typography>
-            ) : (
-                loans.map((loan) => (
-                    <Card key={loan.loanId} sx={{ width: "50%", maxWidth: { xs: 360, sm: 600, md: 800 }, background: "rgba(255, 255, 255, 0.2)", backdropFilter: "blur(10px)", borderRadius: 4, boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)", marginBottom: 4 }}>
-                        <CardContent>
-                            <Grid container columns={{ xs: 12, sm: 6 }}>
-                                <Grid>
-                                    <Typography variant="h6" sx={{ color: "#ffffff", fontWeight: "bold" }}>Loan Amount:</Typography>
-                                    <Typography sx={{ color: "#ffffff" }}>₹{loan.loanAmount}</Typography>
-                                </Grid>
-                                <Grid>
-                                    <Typography variant="h6" sx={{ color: "#ffffff", fontWeight: "bold" }}>Loan Type:</Typography>
-                                    <Typography sx={{ color: "#ffffff" }}>{loan.loanType}</Typography>
-                                </Grid>
-                            </Grid>
-
-                            <Divider sx={{ width: "100%", backgroundColor: "rgba(255, 255, 255, 0.3)", marginY: 2 }} />
-
-                            <Grid container columns={{ xs: 12, sm: 6 }}>
-                                <Grid>
-                                    <Typography variant="h6" sx={{ color: "#ffffff", fontWeight: "bold" }}>Duration (Months):</Typography>
-                                    <Typography sx={{ color: "#ffffff" }}>{loan.duration}</Typography>
-                                </Grid>
-                                <Grid>
-                                    <Typography variant="h6" sx={{ color: "#ffffff", fontWeight: "bold" }}>Monthly EMI:</Typography>
-                                    <Typography sx={{ color: "#ffffff" }}>₹{loan.monthlyEmi}</Typography>
-                                </Grid>
-                            </Grid>
-                        </CardContent>
-                    </Card>
-                ))
-            )}
+      {loading && (
+        <Box textAlign="center" my={4}>
+          <CircularProgress color="secondary" />
         </Box>
-    );
+      )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {!loading && loans.length === 0 && !error && (
+        <Typography
+          variant="h6"
+          color="textSecondary"
+          sx={{ mt: 4, textAlign: "center", fontStyle: "italic" }}
+        >
+          No loans found.
+        </Typography>
+      )}
+
+      <Grid container spacing={3} justifyContent="center">
+        {loans.map((loan, index) => (
+          <Grid item xs={12} sm={6} md={4} key={index}>
+            <Box
+              sx={{
+                background: cardColors[index % cardColors.length],
+                color: "white",
+                p: 3,
+                borderRadius: 3,
+                boxShadow:
+                  "0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19)",
+                transition: "transform 0.3s ease",
+                "&:hover": {
+                  transform: "scale(1.05)",
+                },
+              }}
+            >
+              <Typography variant="h5" fontWeight="600" mb={1}>
+                {loan.loanType}
+              </Typography>
+              <Typography fontWeight="500">Amount: ₹{loan.loanAmount}</Typography>
+              <Typography fontWeight="500">Duration: {loan.duration} months</Typography>
+              <Typography fontWeight="500">Monthly EMI: ₹{loan.monthlyEmi}</Typography>
+              <Typography fontWeight="500">Interest: ₹{loan.interest}</Typography>
+            </Box>
+          </Grid>
+        ))}
+      </Grid>
+
+      {!userId && (
+        <Box textAlign="center" mt={5}>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => setOpenDialog(true)}
+            sx={{
+              background:
+                "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
+              color: "white",
+              fontWeight: "bold",
+              px: 5,
+              py: 1.5,
+              boxShadow:
+                "0 3px 5px 2px rgba(33, 203, 243, .3)",
+              "&:hover": {
+                background:
+                  "linear-gradient(45deg, #21CBF3 30%, #2196F3 90%)",
+              },
+            }}
+          >
+            Apply for a Loan
+          </Button>
+        </Box>
+      )}
+
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{ background: "#3f51b5", color: "white", fontWeight: "bold" }}
+        >
+          Apply for a Loan
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} mt={1}>
+            <Grid item xs={12}>
+              <TextField
+                select
+                label="Loan Type"
+                value={loanType}
+                onChange={(e) => setLoanType(e.target.value)}
+                fullWidth
+                sx={{
+                  "& .MuiInputLabel-root": { color: "#3f51b5" },
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: "#3f51b5" },
+                    "&:hover fieldset": { borderColor: "#1a237e" },
+                    "&.Mui-focused fieldset": { borderColor: "#1a237e" },
+                  },
+                }}
+              >
+                {Object.keys(interestRates).map((type) => (
+                  <MenuItem key={type} value={type}>
+                    {type}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                select
+                label="Duration (months)"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                fullWidth
+                sx={{
+                  "& .MuiInputLabel-root": { color: "#3f51b5" },
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: "#3f51b5" },
+                    "&:hover fieldset": { borderColor: "#1a237e" },
+                    "&.Mui-focused fieldset": { borderColor: "#1a237e" },
+                  },
+                }}
+              >
+                {durations.map((d) => (
+                  <MenuItem key={d} value={d}>
+                    {d} months
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                label="Loan Amount (₹)"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                fullWidth
+                sx={{
+                  "& .MuiInputLabel-root": { color: "#3f51b5" },
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: "#3f51b5" },
+                    "&:hover fieldset": { borderColor: "#1a237e" },
+                    "&.Mui-focused fieldset": { borderColor: "#1a237e" },
+                  },
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Interest Rate (%)"
+                value={rate}
+                InputProps={{ readOnly: true }}
+                fullWidth
+                sx={{
+                  "& .MuiInputLabel-root": { color: "#3f51b5" },
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: "#3f51b5" },
+                  },
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Monthly EMI (₹)"
+                value={monthlyEmi}
+                InputProps={{ readOnly: true }}
+                fullWidth
+                sx={{
+                  "& .MuiInputLabel-root": { color: "#3f51b5" },
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: "#3f51b5" },
+                  },
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                label="Total Interest (₹)"
+                value={interest}
+                InputProps={{ readOnly: true }}
+                fullWidth
+                sx={{
+                  "& .MuiInputLabel-root": { color: "#3f51b5" },
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: "#3f51b5" },
+                  },
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Button
+                onClick={handleApplyLoan}
+                variant="contained"
+                color="primary"
+                fullWidth
+                sx={{
+                  background:
+                    "linear-gradient(45deg, #3f51b5 30%, #5c6bc0 90%)",
+                  fontWeight: "bold",
+                  py: 1.5,
+                  "&:hover": {
+                    background:
+                      "linear-gradient(45deg, #5c6bc0 30%, #3f51b5 90%)",
+                  },
+                }}
+              >
+                Submit Application
+              </Button>
+            </Grid>
+          </Grid>
+        </DialogContent>
+      </Dialog>
+    </Box>
+  );
 };
 
 export default LoanDashboard;
